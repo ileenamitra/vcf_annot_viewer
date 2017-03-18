@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<head>
+
+<style>
+
+.nav{
+	position : fixed;
+	top : 0;
+	width : 100%;
+	background-color : #82E0AA;
+	padding-bottom : 40px;
+}
+
+</style>
+
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script>
+
+var variant_regions = [];
+var count_data = [];
+var variant_region_data = [];
+var exonic_counts = [];
+var variant_effects = [];
+var variant_effects_data = [];
+var variant_types = [];
+var variant_type_data = [];
+var high_cadd_counts = [];
+var known_cadd_counts = [];
+var clinvar_counts = [];
+var layout_count = {
+  title : "Counts of variants found in each chromosome",
+  height: 400,
+  width: 400
+};
+var layout_region = {
+  height: 400,
+  width: 700
+};
+var layout_comparison = {
+  height: 250,
+  width: 1400
+};
+var layout_effects = {
+  height: 450,
+  width: 600
+}
+var layout_types = {
+  height: 450,
+  width: 600
+}
+var layout_cadd = {
+  height: 600,
+  width: 600
+}
+var layout_cin = {
+  height: 600,
+  width: 600
+}
+
+Plotly.d3.json("variant_stats2.json", function(error, stats) {
+	if (error) throw error;	
+	count_data.push({values : Object.values(stats.counts), 
+		   labels : Object.keys(stats.counts), 
+		   insidetextfont : {size : 10, color : "white"},
+		   marker : {
+			colors: ['#C39BD3', '#9B59B6', '#5499C7', '#2E86C1', '#76D7C', '#17A589', '#73C6B6', '#138D75', '#7DCEA0', '#229954', '#58D68D', '#28B463', '#F7DC6F', '#D4AC0D', '#F5B041', '#D68910', '#EB984E', '#CA6F1E', '#DC7633', '#A04000'],
+		   },
+		   textinfo : "label",	
+		   type : 'pie',
+		   showlegend : false});
+	Plotly.newPlot("counts", count_data, layout_count);
+	variant_regions.push(stats.region_counts);
+	exonic_counts.push(stats.exonic_variant_counts);
+        variant_effects.push(stats.exonic_variant_effects);
+        variant_types.push(stats.exonic_variant_types);
+	high_cadd_counts.push(stats.high_cadd_counts);
+	known_cadd_counts.push(stats.known_cadd_counts);
+	clinvar_counts.push(stats.clinvar_max_counts);
+	var pie = document.getElementById("counts");
+	pie.on('plotly_click', function(data){
+
+		//Distribution of variants by region
+		var region_distro = variant_regions[0][data.points[0].label];
+		variant_region_data.pop();
+		variant_region_data.push({y : Object.values(region_distro),
+					x : Object.keys(region_distro),
+					marker : { color : "#45B39D" },
+					type : 'bar'
+		});
+		layout_region.title = "Number of vairants found in each region of chromosome " + data.points[0].label;
+		Plotly.newPlot("region_info", variant_region_data, layout_region);
+
+		var chr = data.points[0].label;
+		if(chr == 'X') {
+			chr = 23;
+		} else if(chr=='Y') {
+			chr = 22;
+		} else {
+			chr = chr - 1;
+		}
+		//Exonic count comparison
+		var comparison_data = [{x : [count_data[0]["values"][chr] - exonic_counts[0][data.points[0].label], exonic_counts[0][data.points[0].label]],
+				       y : ["non-exonic", "exonic"],
+				       marker : { color : ["#A569BD", "#F1C40F"] },
+				       type : 'bar',
+				       orientation : 'h'	
+		}];
+                layout_comparison.title = "Number of coding and non-coding variants found in chromosome " + data.points[0].label;
+		Plotly.newPlot("comparison", comparison_data, layout_comparison);
+
+		//Variant effects
+ 		var effect_counts = variant_effects[0][data.points[0].label];
+		variant_effects_data.pop();
+		variant_effects_data.push({y : Object.values(effect_counts),
+					   x : Object.keys(effect_counts),
+					   marker : {color : "#E59866" },
+					   type : 'bar'
+		});
+                layout_effects.title = "Number of exonic variants by variant effect";
+		Plotly.newPlot("effects", variant_effects_data, layout_effects);
+	
+		//Variant types
+		var types =  variant_types[0][data.points[0].label];
+		variant_type_data.pop();
+		variant_type_data.push({y : Object.values(types),
+					 x : Object.keys(types),
+					 marker : {color : "#5DADE2" },
+					 type : 'bar'
+		});
+		layout_types.title = "Number of exonic variants by variant type";
+		Plotly.newPlot("types", variant_type_data, layout_types);
+	
+		//Cadd distribution
+		var cadd_data = [{values : [high_cadd_counts[0][data.points[0].label], known_cadd_counts[0][data.points[0].label] - high_cadd_counts[0][data.points[0].label]],
+				  labels : ["Number of top 10% deletrious variants in chromosome " + data.points[0].label, "Number of variants with known CADD scores in chromosome " + data.points[0].label],
+				  type : 'pie',
+				  marker : { colors : ['#7D3C98', '#D2B4DE'] },
+				  insidetextfont : {color : "white"}
+		}];
+		Plotly.newPlot("cadd", cadd_data, layout_cadd);
+
+		//Clinvar high scores
+		var clinvar_data = [{ values : [clinvar_counts[0][data.points[0].label], stats.clinvar_max_total - clinvar_counts[0][data.points[0].label]],
+				    labels : ["Number of variants with top Clinvar score in chromosome " + data.points[0].label, "Total variants with top clinvar score"],
+				    type : 'pie',
+				    insidetextfont : {color : "white"},
+				    marker : { colors : ['#229954', '#ABEBC6'] }
+		}];
+		Plotly.newPlot("clin", clinvar_data, layout_cin);
+
+	});
+});
+
+
+</script>
+
+
+</head>
+
+<body style="width:100%;">
+
+<div id="content" style="margin-top:20px; overflow:auto;">
+<table id="variant_stats" style="padding:20px; width:100%; table-layout:fixed; margin-top:20px;">
+<tr style="width:100%;">
+<td style="width:40%;">
+<div id="counts" style="width: 400px; height: 400px;"> </div>
+</td>
+<td style="width:60%;">
+<div id="region_info" style="width: 700px; height: 400px;"> </div>
+</td>
+</tr>
+<tr style="width:100%;">
+<td style="width:100%;">
+<div id="comparison" style="width: 1400px; height:250px;"> </div>
+</td>
+</tr>
+<tr style="width:100%;">
+<td style="width:50%;">
+<div id="effects" style="width:600px; height:450px;"> </div>
+</td>
+<td style="width:50%;">
+<div id="types" style="width:600px; height:450px;"> </div>
+</td>
+</tr>
+<tr style="width:100%;">
+<td style="width:50%;">
+<div id="cadd" style="width:600px; height:600px;"></div>
+</td>
+<td style="width:50%;">
+<div id="clin" style="width:600px; heigh:600px;"></div>
+</td>
+</tr>
+</table>
+</div>
+
+</body>
